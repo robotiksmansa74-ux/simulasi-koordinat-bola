@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spherical Coordinates Interactive App</title>
+    <title>Spherical Coordinates Interactive App - Pro</title>
     <style>
         * { box-sizing: border-box; }
         body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #e2e8f0; color: #1e293b; display: flex; height: 100vh; overflow: hidden; }
@@ -24,6 +24,7 @@
         input[type=range] { width: 100%; cursor: pointer; }
         
         .result-text { font-family: monospace; font-size: 13px; background: #f8fafc; padding: 6px 8px; border-radius: 4px; border: 1px solid #e2e8f0; color: #0f172a; margin-top: 4px; }
+        .instruction { font-size: 12px; color: #64748b; margin-top: 5px; font-style: italic; }
     </style>
 </head>
 <body>
@@ -48,7 +49,8 @@
                 <label>Azimuth &phi; (Rotation): <span id="val-phi">65</span>&deg;</label>
                 <input type="range" id="range-phi" min="0" max="360" step="1" value="65">
             </div>
-            <div class="result-text" id="cartesian-coord-header">Coordinat (x, y, z) = ...</div>
+            <div class="result-text" id="cartesian-coord-header">(x, y, z) = ...</div>
+            <div class="instruction">💡 Tips: Klik & seret mouse pada area 3D untuk memutar kamera. Gunakan scroll untuk zoom.</div>
         </div>
 
         <!-- 1. Kartesius -->
@@ -70,8 +72,9 @@
         </div>
     </div>
 
-    <!-- Pustaka Three.js -->
+    <!-- Pustaka Three.js & OrbitControls -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
@@ -79,11 +82,14 @@
 
         const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
         camera.position.set(4, 3.5, 5.5);
-        camera.lookAt(0, 0, 0);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(container.clientWidth, container.clientHeight);
         container.appendChild(renderer.domElement);
+
+        // Tambahkan OrbitControls untuk interaksi mouse
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
 
         // Pencahayaan
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
@@ -103,7 +109,7 @@
         const wireSphere = new THREE.Mesh(sphereGeo, sphereMat);
         scene.add(wireSphere);
 
-        // Objek Visual Titik P dan Vektor Garis
+        // Titik P
         const pointGeo = new THREE.SphereGeometry(0.08, 16, 16);
         const pointMat = new THREE.MeshBasicMaterial({ color: 0xdc2626 });
         const pointMesh = new THREE.Mesh(pointGeo, pointMat);
@@ -142,7 +148,7 @@
             let theta = thetaDeg * (Math.PI / 180);
             let phi = phiDeg * (Math.PI / 180);
 
-            // Perhitungan Konversi Kartesius (Sistem koordinat Three.js: Y ke atas)
+            // Perhitungan Konversi Kartesius (Three.js: Y adalah sumbu vertikal ke atas)
             let x = r * Math.sin(theta) * Math.cos(phi);
             let z = r * Math.sin(theta) * Math.sin(phi);
             let y = r * Math.cos(theta);
@@ -159,7 +165,7 @@
 
             // Update Teks Informasi Panel
             cartCoordHeader.innerText = `(x, y, z) = (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`;
-            resCartesian.innerText = `x = ${x.toFixed(2)}, y = ${y.toFixed(2)}, z = ${y.toFixed(2)}`;
+            resCartesian.innerText = `x = ${x.toFixed(2)}, y = ${z.toFixed(2)}, z = ${y.toFixed(2)}`;
             resSpherical.innerText = `r = ${r.toFixed(2)}, θ = ${thetaDeg}°, φ = ${phiDeg}°`;
             
             let dVApprox = (Math.pow(r, 2) * Math.sin(theta)).toFixed(2);
@@ -175,6 +181,7 @@
         // Render Loop
         function animate() {
             requestAnimationFrame(animate);
+            controls.update();
             renderer.render(scene, camera);
         }
         animate();
