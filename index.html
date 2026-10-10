@@ -2,15 +2,28 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Visualisasi Koordinat Bola (Spherical Coordinates)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spherical Coordinates Interactive App</title>
     <style>
-        body { margin: 0; font-family: Arial, sans-serif; background: #1e293b; color: white; }
-        #canvas-container { width: 70vw; height: 100vh; float: left; }
-        #sidebar { width: 30vw; height: 100vh; float: right; padding: 20px; box-sizing: border-box; background: #0f172a; overflow-y: auto; }
-        .control-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-size: 14px; }
-        input[type=range] { width: 100%; }
-        .math-box { background: #334155; padding: 10px; border-radius: 5px; margin-top: 10px; font-family: monospace; }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #e2e8f0; color: #1e293b; display: flex; height: 100vh; overflow: hidden; }
+        
+        #canvas-container { flex: 1; height: 100%; background: linear-gradient(135deg, #f8fafc, #cbd5e1); position: relative; }
+        
+        #sidebar { width: 380px; height: 100%; background: #f1f5f9; border-left: 1px solid #cbd5e1; padding: 20px; overflow-y: auto; box-shadow: -4px 0 15px rgba(0,0,0,0.05); }
+        
+        h2 { margin-top: 0; font-size: 22px; color: #0f172a; border-bottom: 2px solid #3b82f6; padding-bottom: 8px; }
+        h3 { font-size: 15px; color: #334155; margin-bottom: 8px; }
+        
+        .card { background: white; padding: 12px 15px; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 4px solid #3b82f6; }
+        .card.green { border-left-color: #10b981; }
+        .card.purple { border-left-color: #8b5cf6; }
+        
+        .control-group { margin-bottom: 10px; }
+        label { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #475569; }
+        input[type=range] { width: 100%; cursor: pointer; }
+        
+        .result-text { font-family: monospace; font-size: 13px; background: #f8fafc; padding: 6px 8px; border-radius: 4px; border: 1px solid #e2e8f0; color: #0f172a; margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -19,65 +32,91 @@
     
     <div id="sidebar">
         <h2>Spherical Coordinates</h2>
-        <p>Titik P(r, &theta;, &phi;)</p>
         
-        <div class="control-group">
-            <label>Radius (r): <span id="val-r">2.00</span></label>
-            <input type="range" id="range-r" min="0.5" max="4.0" step="0.01" value="2.0">
+        <!-- Kontrol Parameter -->
+        <div class="card">
+            <h3>The Point P(r, &theta;, &phi;)</h3>
+            <div class="control-group">
+                <label>Radius (r): <span id="val-r">2.00</span></label>
+                <input type="range" id="range-r" min="0.5" max="3.5" step="0.01" value="2.0">
+            </div>
+            <div class="control-group">
+                <label>Tilt &theta; (Elevation): <span id="val-theta">55</span>&deg;</label>
+                <input type="range" id="range-theta" min="5" max="175" step="1" value="55">
+            </div>
+            <div class="control-group">
+                <label>Azimuth &phi; (Rotation): <span id="val-phi">65</span>&deg;</label>
+                <input type="range" id="range-phi" min="0" max="360" step="1" value="65">
+            </div>
+            <div class="result-text" id="cartesian-coord-header">Coordinat (x, y, z) = ...</div>
         </div>
 
-        <div class="control-group">
-            <label>Sudut &theta; (Elevation): <span id="val-theta">55</span>&deg;</label>
-            <input type="range" id="range-theta" min="0" max="180" step="1" value="55">
-        </div>
-
-        <div class="control-group">
-            <label>Sudut &phi; (Azimuth): <span id="val-phi">65</span>&deg;</label>
-            <input type="range" id="range-phi" min="0" max="360" step="1" value="65">
-        </div>
-
-        <div class="math-box">
+        <!-- 1. Kartesius -->
+        <div class="card green">
             <h3>1. To Cartesian</h3>
-            <p id="cartesian-result">x = 0.69, y = 1.48, z = 1.15</p>
+            <div class="result-text" id="res-cartesian">x = ..., y = ..., z = ...</div>
+        </div>
+
+        <!-- 2. Kembali ke Bola -->
+        <div class="card purple">
+            <h3>2. Back to Spherical</h3>
+            <div class="result-text" id="res-spherical">r = ..., &theta; = ..., &phi; = ...</div>
+        </div>
+
+        <!-- 3. Elemen Volume -->
+        <div class="card" style="border-left-color: #f59e0b;">
+            <h3>3. Volume Element (dV)</h3>
+            <div class="result-text" id="res-volume">dV = r² sin(&theta;) dr d&theta; d&phi;</div>
         </div>
     </div>
 
-    <!-- Memuat Three.js untuk Grafik 3D -->
+    <!-- Pustaka Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // Inisialisasi Scene, Camera, dan Renderer Three.js
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xdbeafe);
+        scene.background = new THREE.Color(0xf1f5f9);
 
-        const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
-        camera.position.set(4, 3, 5);
+        const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+        camera.position.set(4, 3.5, 5.5);
         camera.lookAt(0, 0, 0);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(container.clientWidth, container.clientHeight);
         container.appendChild(renderer.domElement);
 
-        // Tambahkan Pencahayaan & Sumbu Koordinat
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+        // Pencahayaan
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
         scene.add(ambientLight);
-        
-        const axesHelper = new THREE.AxesHelper(3);
+
+        // Grid & Sumbu Koordinat Referensi
+        const gridHelper = new THREE.GridHelper(6, 6, 0x94a3b8, 0xcb9e3e3);
+        gridHelper.position.y = -0.01;
+        scene.add(gridHelper);
+
+        const axesHelper = new THREE.AxesHelper(3.5);
         scene.add(axesHelper);
 
-        // Buat Bola & Titik Koordinat (Placeholder Sederhana)
-        const sphereGeo = new THREE.SphereGeometry(2, 32, 32);
-        const sphereMat = new THREE.MeshBasicMaterial({ color: 0x93c5fd, wireframe: true, transparent: true, opacity: 0.3 });
+        // Kerangka Bola Transparan
+        const sphereGeo = new THREE.SphereGeometry(2, 24, 24);
+        const sphereMat = new THREE.MeshBasicMaterial({ color: 0x3b82f6, wireframe: true, transparent: true, opacity: 0.15 });
         const wireSphere = new THREE.Mesh(sphereGeo, sphereMat);
         scene.add(wireSphere);
 
-        // Titik P
-        const pointGeo = new THREE.SphereGeometry(0.1, 16, 16);
+        // Objek Visual Titik P dan Vektor Garis
+        const pointGeo = new THREE.SphereGeometry(0.08, 16, 16);
         const pointMat = new THREE.MeshBasicMaterial({ color: 0xdc2626 });
         const pointMesh = new THREE.Mesh(pointGeo, pointMat);
         scene.add(pointMesh);
 
-        // Elemen UI
+        // Garis Vektor dari Pusat ke Titik P
+        const lineMaterial = new THREE.LineBasicMaterial({ color: 0xdc2626, linewidth: 2 });
+        const pointsLine = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0)];
+        const lineGeo = new THREE.BufferGeometry().setFromPoints(pointsLine);
+        const vectorLine = new THREE.Line(lineGeo, lineMaterial);
+        scene.add(vectorLine);
+
+        // Elemen Input HTML
         const rangeR = document.getElementById('range-r');
         const rangeTheta = document.getElementById('range-theta');
         const rangePhi = document.getElementById('range-phi');
@@ -85,9 +124,13 @@
         const valR = document.getElementById('val-r');
         const valTheta = document.getElementById('val-theta');
         const valPhi = document.getElementById('val-phi');
-        const cartResult = document.getElementById('cartesian-result');
+        
+        const cartCoordHeader = document.getElementById('cartesian-coord-header');
+        const resCartesian = document.getElementById('res-cartesian');
+        const resSpherical = document.getElementById('res-spherical');
+        const resVolume = document.getElementById('res-volume');
 
-        function updateCoordinates() {
+        function updateVisualization() {
             let r = parseFloat(rangeR.value);
             let thetaDeg = parseFloat(rangeTheta.value);
             let phiDeg = parseFloat(rangePhi.value);
@@ -96,34 +139,47 @@
             valTheta.innerText = thetaDeg;
             valPhi.innerText = phiDeg;
 
-            // Konversi derajat ke radian
             let theta = thetaDeg * (Math.PI / 180);
             let phi = phiDeg * (Math.PI / 180);
 
-            // Rumus Kartesius
+            // Perhitungan Konversi Kartesius (Sistem koordinat Three.js: Y ke atas)
             let x = r * Math.sin(theta) * Math.cos(phi);
-            let y = r * Math.sin(theta) * Math.sin(phi); // Di Three.js sumbu Y biasanya ke atas, sesuaikan dengan konvensi grafis
-            let z = r * Math.cos(theta);
+            let z = r * Math.sin(theta) * Math.sin(phi);
+            let y = r * Math.cos(theta);
 
-            // Update posisi titik di 3D (Perhatikan pemetaan sumbu di Three.js: Y ke atas, Z ke depan)
-            pointMesh.position.set(x, z, y); 
+            // Update Posisi Titik 3D
+            pointMesh.position.set(x, y, z);
 
-            cartResult.innerText = `x = ${x.toFixed(2)}, y = ${y.toFixed(2)}, z = ${z.toFixed(2)}`;
+            // Update Garis Vektor
+            const positions = vectorLine.geometry.attributes.position.array;
+            positions[3] = x;
+            positions[4] = y;
+            positions[5] = z;
+            vectorLine.geometry.attributes.position.needsUpdate = true;
+
+            // Update Teks Informasi Panel
+            cartCoordHeader.innerText = `(x, y, z) = (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`;
+            resCartesian.innerText = `x = ${x.toFixed(2)}, y = ${y.toFixed(2)}, z = ${y.toFixed(2)}`;
+            resSpherical.innerText = `r = ${r.toFixed(2)}, θ = ${thetaDeg}°, φ = ${phiDeg}°`;
+            
+            let dVApprox = (Math.pow(r, 2) * Math.sin(theta)).toFixed(2);
+            resVolume.innerHTML = `r² sin(θ) = ${dVApprox} (dr dθ dφ)`;
         }
 
-        rangeR.addEventListener('input', updateCoordinates);
-        rangeTheta.addEventListener('input', updateCoordinates);
-        rangePhi.addEventListener('input', updateCoordinates);
+        rangeR.addEventListener('input', updateVisualization);
+        rangeTheta.addEventListener('input', updateVisualization);
+        rangePhi.addEventListener('input', updateVisualization);
 
-        updateCoordinates();
+        updateVisualization();
 
-        // Loop Animasi Render
+        // Render Loop
         function animate() {
             requestAnimationFrame(animate);
             renderer.render(scene, camera);
         }
         animate();
 
+        // Responsif Jendela Browser
         window.addEventListener('resize', () => {
             camera.aspect = container.clientWidth / container.clientHeight;
             camera.updateProjectionMatrix();
